@@ -1,6 +1,3 @@
-server:
-  port: 8080
-
 spring:
   application:
     name: order-service
@@ -9,7 +6,7 @@ spring:
     url: jdbc:h2:mem:orderdb
     driver-class-name: org.h2.Driver
     username: sa
-    password: 
+    password:
   
   h2:
     console:
@@ -17,27 +14,24 @@ spring:
       path: /h2-console
   
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
       ddl-auto: create-drop
     show-sql: true
     properties:
       hibernate:
         format_sql: true
-        use_sql_comments: true
+        dialect: org.hibernate.dialect.H2Dialect
   
-  jackson:
-    serialization:
-      write-dates-as-timestamps: false
-    default-property-inclusion: non_null
+  mvc:
+    problemdetails:
+      enabled: true
 
-springdoc:
-  api-docs:
-    path: /api-docs
-  swagger-ui:
-    path: /swagger-ui.html
-    operationsSorter: method
-    tagsSorter: alpha
+server:
+  port: 8080
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: never
 
 logging:
   level:
@@ -45,3 +39,10 @@ logging:
     org.springframework.web: INFO
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true

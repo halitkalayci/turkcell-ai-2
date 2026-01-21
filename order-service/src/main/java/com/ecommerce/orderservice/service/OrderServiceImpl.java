@@ -1,9 +1,16 @@
 package com.ecommerce.orderservice.service;
 
-import com.ecommerce.orderservice.domain.Order;
-import com.ecommerce.orderservice.domain.OrderItem;
-import com.ecommerce.orderservice.domain.OrderStatus;
-import com.ecommerce.orderservice.exception.BusinessRuleViolationException;
+import com.ecommerce.orderservice.dto.request.Address;
+import com.ecommerce.orderservice.dto.request.OrderItemRequest;
+import com.ecommerce.orderservice.dto.request.OrderRequest;
+import com.ecommerce.orderservice.dto.request.UpdateStatusRequest;
+import com.ecommerce.orderservice.dto.response.CancelOrderResponse;
+import com.ecommerce.orderservice.dto.response.OrderItemResponse;
+import com.ecommerce.orderservice.dto.response.OrderResponse;
+import com.ecommerce.orderservice.entity.Order;
+import com.ecommerce.orderservice.entity.OrderItem;
+import com.ecommerce.orderservice.entity.OrderStatus;
+import com.ecommerce.orderservice.exception.CannotCancelOrderException;
 import com.ecommerce.orderservice.exception.OrderNotFoundException;
 import com.ecommerce.orderservice.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
@@ -11,8 +18,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -22,75 +31,140 @@ public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
 
+    // Mock prices - in real scenario, would fetch from product service
+    private static final Double MOCK_UNIT_PRICE = 49.99;
+    private static final String MOCK_PRODUCT_NAME = "Sample Product";
+
     @Override
-    public Order createOrder(Order order) {
-        log.debug("Creating order for customer: {}", order.getCustomerId());
+    public OrderResponse createOrder(OrderRequest orderRequest) {
+        log.info("Creating order for customer: {}", orderRequest.getCustomerId());
 
-        // Set default status
-        order.setStatus(OrderStatus.PREPARING);
+        // Build order entity from request
+        Order order = Order.builder()
+                .customerId(orderRequest.getCustomerId())
+                .street(orderRequest.getAddress().getStreet())
+                .city(orderRequest.getAddress().getCity())
+                .state(orderRequest.getAddress().getState())
+                .postalCode(orderRequest.getAddress().getPostalCode())
+                .country(orderRequest.getAddress().getCountry())
+                .status(OrderStatus.PREPARING)
+                .build();
 
-        // Process each order item
-        for (OrderItem item : order.getItems()) {
-            // For standalone service, mock product details
-            item.setProductName("Product-" + item.getProductId());
-            item.setUnitPrice(BigDecimal.valueOf(49.99)); // Mock price
-            item.calculateTotalPrice();
-            item.setOrder(order);
+        // Add order items
+        for (OrderItemRequest itemRequest : orderRequest.getItems()) {
+            OrderItem orderItem = OrderItem.builder()
+                    .productId(itemRequest.getProductId())
+                    .productName(MOCK_PRODUCT_NAME) // Would fetch from product service
+                    .quantity(itemRequest.getQuantity())
+                    .unitPrice(MOCK_UNIT_PRICE) // Would fetch from product service
+                    .build();
+            
+            orderItem.calculateTotalPrice();
+            order.addItem(orderItem);
         }
 
         // Calculate total amount
         order.calculateTotalAmount();
 
+        // Save order
         Order savedOrder = orderRepository.save(order);
         log.info("Order created successfully with ID: {}", savedOrder.getId());
 
-        return savedOrder;
+        return mapToOrderResponse(savedOrder);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Order getOrderById(UUID orderId) {
-        log.debug("Fetching order with ID: {}", orderId);
+    public OrderResponse getOrderById(UUID id) {
+        log.info("Fetching order with ID: {}", id);
+        
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new OrderNotFoundException(id));
 
-        return orderRepository.findById(orderId)
-                .orElseThrow(() -> new OrderNotFoundException(orderId));
+        return mapToOrderResponse(order);
     }
 
     @Override
-    public Order cancelOrder(UUID orderId) {
-        log.debug("Cancelling order with ID: {}", orderId);
+    public CancelOrderResponse cancelOrder(UUID id) {
+        log.info("Attempting to cancel order with ID: {}", id);
 
-        Order order = getOrderById(orderId);
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new OrderNotFoundException(id));
 
-        if (!order.canBeCancelled()) {
-            throw new BusinessRuleViolationException(
-                    String.format("Order with ID %s cannot be cancelled because it has been shipped", orderId)
-            );
+        // Check if order can be cancelled
+        if (order.getStatus() == OrderStatus.SHIPPED || order.getStatus() == OrderStatus.DELIVERED) {
+            throw new CannotCancelOrderException(id, order.getStatus());
         }
 
+        // Update order status to CANCELLED
         order.setStatus(OrderStatus.CANCELLED);
-        Order updatedOrder = orderRepository.save(order);
+        order.setCancelledAt(LocalDateTime.now());
+        orderRepository.save(order);
 
-        log.info("Order {} cancelled successfully", orderId);
-        return updatedOrder;
+        log.info("Order {} cancelled successfully", id);
+
+        return CancelOrderResponse.builder()
+                .id(order.getId())
+                .status(order.getStatus())
+                .message("Order has been successfully cancelled")
+                .cancelledAt(order.getCancelledAt())
+                .build();
     }
 
     @Override
-    public Order updateOrderStatus(UUID orderId, OrderStatus newStatus) {
-        log.debug("Updating order {} status to {}", orderId, newStatus);
+    public OrderResponse updateOrderStatus(UUID id, UpdateStatusRequest request) {
+        log.info("Updating status of order {} to {}", id, request.getStatus());
 
-        Order order = getOrderById(orderId);
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new OrderNotFoundException(id));
 
-        if (order.getStatus() == OrderStatus.CANCELLED) {
-            throw new BusinessRuleViolationException(
-                    "Cannot update status of a cancelled order"
-            );
-        }
-
-        order.setStatus(newStatus);
+        order.setStatus(request.getStatus());
         Order updatedOrder = orderRepository.save(order);
 
-        log.info("Order {} status updated to {}", orderId, newStatus);
-        return updatedOrder;
+        log.info("Order {} status updated successfully", id);
+
+        return mapToOrderResponse(updatedOrder);
+    }
+
+    /**
+     * Maps Order entity to OrderResponse DTO
+     */
+    private OrderResponse mapToOrderResponse(Order order) {
+        List<OrderItemResponse> itemResponses = order.getItems().stream()
+                .map(this::mapToOrderItemResponse)
+                .collect(Collectors.toList());
+
+        Address address = Address.builder()
+                .street(order.getStreet())
+                .city(order.getCity())
+                .state(order.getState())
+                .postalCode(order.getPostalCode())
+                .country(order.getCountry())
+                .build();
+
+        return OrderResponse.builder()
+                .id(order.getId())
+                .customerId(order.getCustomerId())
+                .address(address)
+                .items(itemResponses)
+                .status(order.getStatus())
+                .totalAmount(order.getTotalAmount())
+                .createdAt(order.getCreatedAt())
+                .updatedAt(order.getUpdatedAt())
+                .build();
+    }
+
+    /**
+     * Maps OrderItem entity to OrderItemResponse DTO
+     */
+    private OrderItemResponse mapToOrderItemResponse(OrderItem orderItem) {
+        return OrderItemResponse.builder()
+                .id(orderItem.getId())
+                .productId(orderItem.getProductId())
+                .productName(orderItem.getProductName())
+                .quantity(orderItem.getQuantity())
+                .unitPrice(orderItem.getUnitPrice())
+                .totalPrice(orderItem.getTotalPrice())
+                .build();
     }
 }
