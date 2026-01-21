@@ -75,3 +75,60 @@ If any detail is missing, ASK.
 
 - Breaking changes require a new version; do not silently break clients.
 
+
+
+
+
+## 3) ARCHITECTURE (PER SERVICE)
+
+Each service MUST follow this layering:
+
+`controller (web) -> application (use-cases) -> domain (business rules) -> infrastructure (persistence/clients/messaging)`
+
+### 3.1 Controller (web)
+
+- No business logic.
+
+- Validates input, maps to application layer, return response DTOs.
+
+- NEVER returns JPA entities.
+
+### 3.2 Application (use-cases)
+
+- Orchestrates use-cases, transaction, ports.
+
+- MUST BE unit-testable.
+
+### 3.3 Domain
+
+- Contains business invariants and domain model.
+
+- Avoid framework annotations in domain if possible.
+
+### 3.4 Infrastructure
+
+- JPA entities, repositories, external clients, messaging adapters.
+
+- No business rules here.
+
+## 4) CODING STANDARDS (QUALITY BAR)
+
+### 4.1) Simplicity
+
+- Prefer the simplest working solution.
+
+- Avoid over-engineering, unnecessary patterns, extra layers.
+
+### 4.2) Money & Time
+
+- Money uses `BigDecimal`, never `double/float`
+
+- Time uses `Instant` or `OffsetDateTime`
+
+- Do not mix time types without reason.
+
+### 4.3) IDs
+
+- Use a single ID strategy across all services. (UUID)
+
+- Never mix UUID and Long unless explicitly required by contract.
