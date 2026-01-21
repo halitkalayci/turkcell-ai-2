@@ -1,0 +1,14 @@
+spring:
+  profiles:
+    active: dev
+  
+  h2:
+    console:
+      enabled: true
+  
+  jpa:
+    show-sql: true
+
+logging:
+  level:
+    com.ecommerce.inventoryservice: DEBUG

@@ -41,6 +41,10 @@ You MUST NOT invent:
 
 If any detail is missing, ASK.
 
+### 1.3 Documentation
+
+- You MUST NOT create any .md file unless it is requested.
+
 ## 2) CONTRACT FIRST
 
 ### 2.1 OpenAPI is the source of truth
