@@ -39,6 +39,8 @@ You MUST NOT invent:
 
 - Business rules
 
+- Anything architectural 
+
 If any detail is missing, ASK.
 
 ### 1.3 Documentation
@@ -84,6 +86,8 @@ If any detail is missing, ASK.
 Each service MUST follow this layering:
 
 `controller (web) -> application (use-cases) -> domain (business rules) -> infrastructure (persistence/clients/messaging)`
+
+Each service MUST follow `Hexagonal Architecture` principles.
 
 ### 3.1 Controller (web)
 
