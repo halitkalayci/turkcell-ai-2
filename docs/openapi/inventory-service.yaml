@@ -1,0 +1,579 @@
+openapi: 3.0.1
+info:
+  title: Inventory Service API
+  description: |
+    Inventory Service manages product stock levels and reservations for the e-commerce platform.
+    
+    **Key Features:**
+    - Real-time stock availability checks
+    - Synchronous stock reservations with TTL
+    - Idempotent reservation operations
+    - Automatic reservation expiration handling
+    
+    **Business Rules:**
+    - Reservations expire after 15 minutes by default
+    - Insufficient stock returns 422 Unprocessable Entity
+    - Concurrent reservation conflicts return 409 Conflict
+  version: 1.0.0
+  contact:
+    name: E-Commerce Platform Team
+    email: platform@ecommerce.com
+
+servers:
+  - url: http://localhost:8081/api/v1
+    description: Development server
+  - url: https://api.ecommerce.com/api/v1
+    description: Production server
+
+tags:
+  - name: Inventory Items
+    description: Stock information and availability operations
+  - name: Reservations
+    description: Stock reservation lifecycle management
+
+paths:
+  /api/v1/inventory-items/{productId}:
+    get:
+      tags:
+        - Inventory Items
+      summary: Get stock information for a product
+      description: Retrieves current available quantity and stock status for a specific product
+      operationId: getInventoryItem
+      parameters:
+        - $ref: '#/components/parameters/ProductIdPathParam'
+      responses:
+        '200':
+          description: Stock information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItemResponse'
+        '404':
+          description: Product not found in inventory
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              example:
+                type: "about:blank"
+                title: "Product Not Found"
+                status: 404
+                detail: "Product with ID 123e4567-e89b-12d3-a456-426614174000 does not exist in inventory"
+                instance: "/api/v1/inventory-items/123e4567-e89b-12d3-a456-426614174000"
+      security:
+        - BearerAuth: []
+
+  /api/v1/inventory-items/availability-check:
+    post:
+      tags:
+        - Inventory Items
+      summary: Check stock availability for multiple products
+      description: |
+        Validates whether requested quantities are available for multiple products.
+        This is a non-destructive operation that does not reserve stock.
+        Use this before creating orders to provide immediate feedback to customers.
+      operationId: checkStockAvailability
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AvailabilityCheckRequest'
+      responses:
+        '200':
+          description: Availability check completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailabilityCheckResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              example:
+                type: "about:blank"
+                title: "Bad Request"
+                status: 400
+                detail: "Request must contain at least one item"
+                instance: "/api/v1/inventory-items/availability-check"
+      security:
+        - BearerAuth: []
+
+  /api/v1/inventory-reservations:
+    post:
+      tags:
+        - Reservations
+      summary: Create a stock reservation for an order
+      description: |
+        Reserves stock for the specified products and quantities.
+        Returns a reservation ID that must be used to release the reservation later.
+        
+        **Idempotency:** This endpoint is idempotent when using the Idempotency-Key header.
+        If a reservation already exists for the given key, the existing reservation is returned.
+        
+        **TTL:** Reservations automatically expire after 15 minutes if not released explicitly.
+      operationId: createStockReservation
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockReservationRequest'
+      responses:
+        '201':
+          description: Reservation created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockReservationResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              example:
+                type: "about:blank"
+                title: "Bad Request"
+                status: 400
+                detail: "Quantity must be greater than zero for all items"
+                instance: "/api/v1/inventory-reservations"
+        '404':
+          description: One or more products not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              example:
+                type: "about:blank"
+                title: "Product Not Found"
+                status: 404
+                detail: "Product with ID 123e4567-e89b-12d3-a456-426614174000 does not exist in inventory"
+                instance: "/api/v1/inventory-reservations"
+        '409':
+          description: Reservation conflict due to concurrent modification
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              example:
+                type: "about:blank"
+                title: "Reservation Conflict"
+                status: 409
+                detail: "Stock levels changed during reservation. Please retry the operation."
+                instance: "/api/v1/inventory-reservations"
+        '422':
+          description: Insufficient stock to fulfill reservation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/InsufficientStockProblem'
+              example:
+                type: "about:blank"
+                title: "Insufficient Stock"
+                status: 422
+                detail: "Cannot reserve requested quantities due to insufficient stock"
+                instance: "/api/v1/inventory-reservations"
+                insufficientItems:
+                  - productId: "123e4567-e89b-12d3-a456-426614174000"
+                    requestedQuantity: 10
+                    availableQuantity: 3
+      security:
+        - BearerAuth: []
+
+  /api/v1/inventory-reservations/{reservationId}:
+    get:
+      tags:
+        - Reservations
+      summary: Get reservation details
+      description: Retrieves detailed information about an existing stock reservation
+      operationId: getReservation
+      parameters:
+        - $ref: '#/components/parameters/ReservationIdPathParam'
+      responses:
+        '200':
+          description: Reservation details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockReservationResponse'
+        '404':
+          description: Reservation not found or expired
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              example:
+                type: "about:blank"
+                title: "Reservation Not Found"
+                status: 404
+                detail: "Reservation with ID 987e6543-e21b-12d3-a456-426614174999 does not exist or has expired"
+                instance: "/api/v1/inventory-reservations/987e6543-e21b-12d3-a456-426614174999"
+      security:
+        - BearerAuth: []
+    
+    delete:
+      tags:
+        - Reservations
+      summary: Release a stock reservation
+      description: |
+        Releases a previously created stock reservation, returning the reserved quantities back to available stock.
+        This operation is idempotent - releasing an already released or expired reservation returns 204.
+      operationId: releaseReservation
+      parameters:
+        - $ref: '#/components/parameters/ReservationIdPathParam'
+      responses:
+        '204':
+          description: Reservation released successfully
+        '404':
+          description: Reservation not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              example:
+                type: "about:blank"
+                title: "Reservation Not Found"
+                status: 404
+                detail: "Reservation with ID 987e6543-e21b-12d3-a456-426614174999 does not exist"
+                instance: "/api/v1/inventory-reservations/987e6543-e21b-12d3-a456-426614174999"
+      security:
+        - BearerAuth: []
+
+components:
+  schemas:
+    InventoryItemResponse:
+      type: object
+      required:
+        - productId
+        - availableQuantity
+        - reservedQuantity
+        - totalQuantity
+        - lastUpdatedAt
+      properties:
+        productId:
+          type: string
+          format: uuid
+          description: "Unique identifier of the product"
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        availableQuantity:
+          type: integer
+          format: int32
+          minimum: 0
+          description: "Current quantity available for reservation (not including reserved stock)"
+          example: 150
+        reservedQuantity:
+          type: integer
+          format: int32
+          minimum: 0
+          description: "Total quantity currently reserved across all active reservations"
+          example: 25
+        totalQuantity:
+          type: integer
+          format: int32
+          minimum: 0
+          description: "Total physical quantity in warehouse (available + reserved)"
+          example: 175
+        lastUpdatedAt:
+          type: string
+          format: date-time
+          description: "Timestamp of last stock update (ISO 8601)"
+          example: "2026-01-21T10:30:00Z"
+
+    AvailabilityCheckRequest:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          description: "List of products and quantities to check"
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/AvailabilityCheckItem'
+
+    AvailabilityCheckItem:
+      type: object
+      required:
+        - productId
+        - quantity
+      properties:
+        productId:
+          type: string
+          format: uuid
+          description: "Unique identifier of the product"
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+          description: "Quantity to check availability for"
+          example: 5
+
+    AvailabilityCheckResponse:
+      type: object
+      required:
+        - available
+        - items
+      properties:
+        available:
+          type: boolean
+          description: "Indicates whether all requested items are available in requested quantities"
+          example: true
+        items:
+          type: array
+          description: "Detailed availability information for each requested item"
+          items:
+            $ref: '#/components/schemas/AvailabilityCheckResultItem'
+
+    AvailabilityCheckResultItem:
+      type: object
+      required:
+        - productId
+        - requestedQuantity
+        - availableQuantity
+        - sufficient
+      properties:
+        productId:
+          type: string
+          format: uuid
+          description: "Unique identifier of the product"
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        requestedQuantity:
+          type: integer
+          format: int32
+          minimum: 1
+          description: "Quantity requested in the check"
+          example: 5
+        availableQuantity:
+          type: integer
+          format: int32
+          minimum: 0
+          description: "Current available quantity for this product"
+          example: 150
+        sufficient:
+          type: boolean
+          description: "Indicates whether available quantity meets the requested quantity"
+          example: true
+
+    StockReservationRequest:
+      type: object
+      required:
+        - orderId
+        - items
+      properties:
+        orderId:
+          type: string
+          format: uuid
+          description: "Unique identifier of the order requesting reservation"
+          example: "b8f2e6f0-2f1e-4d6a-9a3e-6c0a9c6c0f11"
+        items:
+          type: array
+          description: "List of products and quantities to reserve"
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ReservationItem'
+        reservationTtlMinutes:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 60
+          default: 15
+          description: "Time-to-live for this reservation in minutes (default: 15, max: 60)"
+          example: 15
+
+    ReservationItem:
+      type: object
+      required:
+        - productId
+        - quantity
+      properties:
+        productId:
+          type: string
+          format: uuid
+          description: "Unique identifier of the product to reserve"
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+          description: "Quantity to reserve"
+          example: 2
+
+    StockReservationResponse:
+      type: object
+      required:
+        - reservationId
+        - orderId
+        - status
+        - items
+        - createdAt
+        - expiresAt
+      properties:
+        reservationId:
+          type: string
+          format: uuid
+          description: "Unique identifier of the created reservation"
+          example: "987e6543-e21b-12d3-a456-426614174999"
+        orderId:
+          type: string
+          format: uuid
+          description: "Identifier of the order this reservation belongs to"
+          example: "b8f2e6f0-2f1e-4d6a-9a3e-6c0a9c6c0f11"
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - RELEASED
+            - EXPIRED
+          description: "Current status of the reservation"
+          example: "ACTIVE"
+        items:
+          type: array
+          description: "List of reserved items with quantities"
+          items:
+            $ref: '#/components/schemas/ReservedItem'
+        createdAt:
+          type: string
+          format: date-time
+          description: "Timestamp when reservation was created (ISO 8601)"
+          example: "2026-01-21T10:30:00Z"
+        expiresAt:
+          type: string
+          format: date-time
+          description: "Timestamp when reservation will automatically expire (ISO 8601)"
+          example: "2026-01-21T10:45:00Z"
+
+    ReservedItem:
+      type: object
+      required:
+        - productId
+        - quantity
+      properties:
+        productId:
+          type: string
+          format: uuid
+          description: "Unique identifier of the reserved product"
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+          description: "Reserved quantity"
+          example: 2
+
+    ProblemDetail:
+      type: object
+      required:
+        - type
+        - title
+        - status
+      properties:
+        type:
+          type: string
+          description: "URI reference that identifies the problem type (RFC 7807)"
+          example: "about:blank"
+        title:
+          type: string
+          description: "Short, human-readable summary of the problem"
+          example: "Bad Request"
+        status:
+          type: integer
+          format: int32
+          description: "HTTP status code"
+          example: 400
+        detail:
+          type: string
+          description: "Human-readable explanation specific to this occurrence"
+          example: "The request body contains invalid data"
+        instance:
+          type: string
+          description: "URI reference that identifies the specific occurrence of the problem"
+          example: "/api/v1/inventory-reservations"
+
+    InsufficientStockProblem:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetail'
+        - type: object
+          required:
+            - insufficientItems
+          properties:
+            insufficientItems:
+              type: array
+              description: "List of items that do not have sufficient stock"
+              items:
+                $ref: '#/components/schemas/InsufficientStockItem'
+
+    InsufficientStockItem:
+      type: object
+      required:
+        - productId
+        - requestedQuantity
+        - availableQuantity
+      properties:
+        productId:
+          type: string
+          format: uuid
+          description: "Unique identifier of the product with insufficient stock"
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        requestedQuantity:
+          type: integer
+          format: int32
+          minimum: 1
+          description: "Quantity that was requested"
+          example: 10
+        availableQuantity:
+          type: integer
+          format: int32
+          minimum: 0
+          description: "Quantity currently available"
+          example: 3
+
+  parameters:
+    ProductIdPathParam:
+      name: productId
+      in: path
+      required: true
+      description: "Unique identifier of the product"
+      schema:
+        type: string
+        format: uuid
+      example: "123e4567-e89b-12d3-a456-426614174000"
+
+    ReservationIdPathParam:
+      name: reservationId
+      in: path
+      required: true
+      description: "Unique identifier of the reservation"
+      schema:
+        type: string
+        format: uuid
+      example: "987e6543-e21b-12d3-a456-426614174999"
+
+    IdempotencyKeyHeader:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: |
+        Unique identifier for this reservation request (UUID format recommended).
+        If a reservation with this key already exists and is still active,
+        the existing reservation will be returned instead of creating a duplicate.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 255
+      example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "JWT token-based authentication. Obtain token from the authentication service."
+
+security:
+  - BearerAuth: []
