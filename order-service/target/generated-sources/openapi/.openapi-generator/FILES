@@ -1,0 +1,11 @@
+src/main/java/com/ecommerce/orderservice/api/ApiUtil.java
+src/main/java/com/ecommerce/orderservice/api/OrdersApi.java
+src/main/java/com/ecommerce/orderservice/api/model/Address.java
+src/main/java/com/ecommerce/orderservice/api/model/CancelOrderResponse.java
+src/main/java/com/ecommerce/orderservice/api/model/OrderItemRequest.java
+src/main/java/com/ecommerce/orderservice/api/model/OrderItemResponse.java
+src/main/java/com/ecommerce/orderservice/api/model/OrderRequest.java
+src/main/java/com/ecommerce/orderservice/api/model/OrderResponse.java
+src/main/java/com/ecommerce/orderservice/api/model/OrderStatus.java
+src/main/java/com/ecommerce/orderservice/api/model/ProblemDetails.java
+src/main/java/com/ecommerce/orderservice/api/model/UpdateStatusRequest.java
