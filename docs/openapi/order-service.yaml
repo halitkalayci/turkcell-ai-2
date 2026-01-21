@@ -10,9 +10,9 @@ info:
     email: order-team@ecommerce.com
 
 servers:
-  - url: http://localhost:8080
+  - url: http://localhost:8080/api/v1
     description: Local development server
-  - url: https://api.ecommerce.com
+  - url: https://api.ecommerce.com/api/v1
     description: Production server
 
 tags:
@@ -20,7 +20,7 @@ tags:
     description: Order management operations
 
 paths:
-  /orders:
+  /api/v1/orders:
     post:
       tags:
         - Orders
@@ -51,7 +51,7 @@ paths:
                 title: "Bad Request"
                 status: 400
                 detail: "Validation failed: customerId must not be null"
-                instance: "/orders"
+                instance: "/api/v1/orders"
         '422':
           description: Business rule violation (e.g., insufficient stock)
           content:
@@ -63,7 +63,7 @@ paths:
                 title: "Insufficient Stock"
                 status: 422
                 detail: "Product ID 550e8400-e29b-41d4-a716-446655440001 does not have enough stock to fulfill request."
-                instance: "/orders"
+                instance: "/api/v1/orders"
         '500':
           description: Internal server error
           content:
@@ -73,7 +73,7 @@ paths:
       security:
         - BearerAuth: []
 
-  /orders/{id}:
+  /api/v1/orders/{id}:
     get:
       tags:
         - Orders
@@ -107,7 +107,7 @@ paths:
                 title: "Not Found"
                 status: 404
                 detail: "Order with ID 650e8400-e29b-41d4-a716-446655440000 not found"
-                instance: "/orders/650e8400-e29b-41d4-a716-446655440000"
+                instance: "/api/v1/orders/650e8400-e29b-41d4-a716-446655440000"
         '500':
           description: Internal server error
           content:
@@ -117,7 +117,7 @@ paths:
       security:
         - BearerAuth: []
 
-  /orders/{id}/cancel:
+  /api/v1/orders/{id}/cancel:
     post:
       tags:
         - Orders
@@ -153,7 +153,7 @@ paths:
                 title: "Not Found"
                 status: 404
                 detail: "Order with ID 650e8400-e29b-41d4-a716-446655440000 not found"
-                instance: "/orders/650e8400-e29b-41d4-a716-446655440000/cancel"
+                instance: "/api/v1/orders/650e8400-e29b-41d4-a716-446655440000/cancel"
         '422':
           description: Order cannot be cancelled (already shipped or delivered)
           content:
@@ -165,7 +165,7 @@ paths:
                 title: "Cannot Cancel Order"
                 status: 422
                 detail: "Order with ID 650e8400-e29b-41d4-a716-446655440000 cannot be cancelled because it has been shipped"
-                instance: "/orders/650e8400-e29b-41d4-a716-446655440000/cancel"
+                instance: "/api/v1/orders/650e8400-e29b-41d4-a716-446655440000/cancel"
         '500':
           description: Internal server error
           content:
@@ -175,7 +175,7 @@ paths:
       security:
         - BearerAuth: []
 
-  /orders/{id}/status:
+  /api/v1/orders/{id}/status:
     patch:
       tags:
         - Orders
@@ -215,7 +215,7 @@ paths:
                 title: "Bad Request"
                 status: 400
                 detail: "Invalid status value. Allowed values are: PREPARING, SHIPPED, DELIVERED"
-                instance: "/orders/650e8400-e29b-41d4-a716-446655440000/status"
+                instance: "/api/v1/orders/650e8400-e29b-41d4-a716-446655440000/status"
         '404':
           description: Order not found
           content:
@@ -227,7 +227,7 @@ paths:
                 title: "Not Found"
                 status: 404
                 detail: "Order with ID 650e8400-e29b-41d4-a716-446655440000 not found"
-                instance: "/orders/650e8400-e29b-41d4-a716-446655440000/status"
+                instance: "/api/v1/orders/650e8400-e29b-41d4-a716-446655440000/status"
         '500':
           description: Internal server error
           content:
@@ -459,7 +459,7 @@ components:
         instance:
           type: string
           description: A URI reference that identifies the specific occurrence of the problem
-          example: "/orders"
+          example: "/api/v1/orders"
 
   securitySchemes:
     BearerAuth:
