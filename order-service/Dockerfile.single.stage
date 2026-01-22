@@ -1,0 +1,37 @@
+# Single-stage Dockerfile for order-service
+# This approach builds and runs the application in a single image
+# Pros: Simple to understand and maintain
+# Cons: Larger image size (includes Maven and build dependencies)
+
+FROM eclipse-temurin:21-jdk
+
+# Set working directory
+WORKDIR /app
+
+# Install Maven
+RUN apt-get update && \
+    apt-get install -y maven && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy pom.xml for dependency caching
+COPY pom.xml ./
+
+# Download dependencies (cached layer if pom.xml doesn't change)
+RUN mvn dependency:go-offline -B
+
+# Copy source code
+COPY src ./src
+
+# Build the application
+RUN mvn clean package -DskipTests
+
+# Expose application port
+EXPOSE 8081
+
+# Set environment variables with defaults
+ENV SPRING_PROFILES_ACTIVE=dev
+ENV SERVER_PORT=8081
+
+# Run the application
+ENTRYPOINT ["java", "-jar", "target/order-service-1.0.0.jar"]
