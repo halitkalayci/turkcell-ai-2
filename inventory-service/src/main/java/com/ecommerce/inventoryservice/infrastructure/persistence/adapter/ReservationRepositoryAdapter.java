@@ -32,8 +32,20 @@ public class ReservationRepositoryAdapter implements ReservationRepository {
 
     @Override
     public Reservation save(Reservation reservation) {
-        ReservationEntity entity = mapper.toEntity(reservation);
-        ReservationEntity savedEntity = jpaRepository.save(entity);
+        // Check if reservation already exists in DB
+        Optional<ReservationEntity> existingEntity = jpaRepository.findById(reservation.getId());
+        
+        ReservationEntity entityToSave;
+        if (existingEntity.isPresent()) {
+            // Update existing entity (preserves version for optimistic lock)
+            entityToSave = existingEntity.get();
+            mapper.updateEntity(reservation, entityToSave);
+        } else {
+            // Create new entity (Hibernate will generate ID and version)
+            entityToSave = mapper.toEntity(reservation);
+        }
+        
+        ReservationEntity savedEntity = jpaRepository.save(entityToSave);
         return mapper.toDomain(savedEntity);
     }
 

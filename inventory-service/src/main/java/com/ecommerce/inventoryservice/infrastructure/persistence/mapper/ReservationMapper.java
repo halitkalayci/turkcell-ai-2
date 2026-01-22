@@ -48,19 +48,20 @@ public class ReservationMapper {
     }
 
     /**
-     * Converts domain model to JPA entity.
+     * Converts domain model to NEW JPA entity (for inserts).
+     * Does NOT set ID or version - lets JPA generate them.
      *
      * @param domain the domain model
-     * @return the JPA entity
+     * @return the JPA entity (new, transient)
      */
     public ReservationEntity toEntity(Reservation domain) {
         if (domain == null) {
             return null;
         }
 
-        // Create reservation entity
+        // Create reservation entity WITHOUT setting ID (let Hibernate generate)
+        // Domain ID will be replaced by Hibernate's generated ID
         ReservationEntity entity = ReservationEntity.builder()
-            .id(domain.getId())
             .orderId(domain.getOrderId())
             .status(domain.getStatus())
             .createdAt(domain.getCreatedAt())
@@ -80,6 +81,37 @@ public class ReservationMapper {
         entity.setItems(new ArrayList<>(itemEntities));
 
         return entity;
+    }
+
+    /**
+     * Updates an existing JPA entity with domain model data.
+     * Preserves ID and version for optimistic locking.
+     *
+     * @param domain the domain model with updated data
+     * @param entity the existing JPA entity to update
+     */
+    public void updateEntity(Reservation domain, ReservationEntity entity) {
+        if (domain == null || entity == null) {
+            return;
+        }
+
+        // Update fields (preserve ID and version)
+        entity.setOrderId(domain.getOrderId());
+        entity.setStatus(domain.getStatus());
+        entity.setExpiresAt(domain.getExpiresAt());
+
+        // Clear and rebuild items
+        entity.getItems().clear();
+        
+        List<ReservationItemEntity> itemEntities = domain.getItems().stream()
+            .map(item -> ReservationItemEntity.builder()
+                .reservation(entity)
+                .productId(item.getProductId())
+                .quantity(item.getQuantity())
+                .build())
+            .toList();
+
+        entity.getItems().addAll(itemEntities);
     }
 
     /**
