@@ -2,6 +2,13 @@ spring:
   application:
     name: inventory-service
   
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8181/realms/ecommerce
+          jwk-set-uri: http://localhost:8181/realms/ecommerce/protocol/openid-connect/certs
+  
   datasource:
     url: jdbc:h2:mem:inventorydb
     driver-class-name: org.h2.Driver
@@ -70,6 +77,8 @@ logging:
   level:
     com.ecommerce.inventoryservice: DEBUG
     org.springframework.web: INFO
+    org.springframework.security: DEBUG
+    org.springframework.security.oauth2: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
 

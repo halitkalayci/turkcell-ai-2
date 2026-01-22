@@ -14,6 +14,8 @@ C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\order-service\src\mai
 C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\order-service\src\main\java\com\ecommerce\orderservice\domain\model\OrderItem.java
 C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\order-service\src\main\java\com\ecommerce\orderservice\infrastructure\persistence\repository\OrderJpaRepository.java
 C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\order-service\src\main\java\com\ecommerce\orderservice\domain\port\OrderRepository.java
+C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\order-service\src\main\java\com\ecommerce\orderservice\infrastructure\config\SecurityConfig.java
+C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\order-service\src\main\java\com\ecommerce\orderservice\infrastructure\security\JwtClaimsConverter.java
 C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\order-service\src\main\java\com\ecommerce\orderservice\infrastructure\messaging\publisher\OutboxEventPublisher.java
 C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\order-service\src\main\java\com\ecommerce\orderservice\application\service\OutboxService.java
 C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\order-service\src\main\java\com\ecommerce\orderservice\application\service\OrderEventHandler.java

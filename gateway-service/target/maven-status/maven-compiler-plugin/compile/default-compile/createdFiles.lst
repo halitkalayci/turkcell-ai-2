@@ -2,6 +2,8 @@ com\ecommerce\gateway\filter\ResponseLoggingFilter.class
 com\ecommerce\gateway\filter\RequestLoggingFilter.class
 com\ecommerce\gateway\health\InventoryServiceHealthIndicator.class
 com\ecommerce\gateway\GatewayServiceApplication.class
+com\ecommerce\gateway\filter\CorrelationIdFilter.class
 com\ecommerce\gateway\health\OrderServiceHealthIndicator.class
 com\ecommerce\gateway\config\WebClientConfig.class
 com\ecommerce\gateway\exception\GlobalErrorHandler.class
+com\ecommerce\gateway\config\SecurityConfig.class
