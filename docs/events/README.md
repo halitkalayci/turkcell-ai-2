@@ -15,7 +15,7 @@ All event contracts are defined in this directory.
 - **Framework:** Spring Cloud Stream (functional programming model)
 - **Current Binder:** Kafka
 - **Serialization:** JSON
-- **Broker Connection:** localhost:29092
+- **Broker Connection:** localhost:29023
 
 ## Services
 - **Order Service:** Port 8081, produces order events
@@ -23,7 +23,7 @@ All event contracts are defined in this directory.
 - **Notification Service:** Port 8083, consumes all events (pure consumer)
 
 ## Message Broker Configuration
-- Current: Kafka at `localhost:29092`
+- Current: Kafka at `localhost:29023`
 - Can be switched to RabbitMQ or others via configuration only
 - See [messaging-configuration.md](messaging-configuration.md) for details
 

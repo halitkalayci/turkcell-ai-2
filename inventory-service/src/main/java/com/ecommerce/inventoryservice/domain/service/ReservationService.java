@@ -3,7 +3,6 @@ package com.ecommerce.inventoryservice.domain.service;
 import com.ecommerce.inventoryservice.domain.exception.InvalidReservationStateException;
 import com.ecommerce.inventoryservice.domain.model.Reservation;
 import com.ecommerce.inventoryservice.domain.model.ReservationItem;
-import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.List;
@@ -13,8 +12,8 @@ import java.util.UUID;
  * Domain service for reservation lifecycle management.
  * Stateless - contains business logic for reservation operations.
  * NO repository dependencies - works with domain models passed as parameters.
+ * No Spring annotations - pure domain logic.
  */
-@Component
 public class ReservationService {
 
     /**

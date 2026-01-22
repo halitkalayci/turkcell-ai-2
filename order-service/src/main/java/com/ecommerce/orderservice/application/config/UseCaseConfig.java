@@ -1,5 +1,6 @@
 package com.ecommerce.orderservice.application.config;
 
+import com.ecommerce.orderservice.application.service.OutboxService;
 import com.ecommerce.orderservice.application.usecase.*;
 import com.ecommerce.orderservice.domain.port.OrderRepository;
 import com.ecommerce.orderservice.domain.service.OrderValidationService;
@@ -14,8 +15,10 @@ import org.springframework.context.annotation.Configuration;
 public class UseCaseConfig {
     
     @Bean
-    public CreateOrderUseCase createOrderUseCase(OrderRepository orderRepository) {
-        return new CreateOrderUseCase(orderRepository);
+    public CreateOrderUseCase createOrderUseCase(
+            OrderRepository orderRepository,
+            OutboxService outboxService) {
+        return new CreateOrderUseCase(orderRepository, outboxService);
     }
     
     @Bean

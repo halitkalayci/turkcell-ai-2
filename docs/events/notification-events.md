@@ -171,7 +171,7 @@ spring:
             back-off-multiplier: 3.0
       kafka:
         binder:
-          brokers: localhost:29092
+          brokers: localhost:29023
         bindings:
           orderEventsConsumer-in-0:
             consumer:

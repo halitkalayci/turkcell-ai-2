@@ -8,7 +8,7 @@ Services can switch between Kafka, RabbitMQ, or other brokers via configuration 
 
 ### Message Broker
 - **Type:** Apache Kafka
-- **Bootstrap Servers:** `localhost:29092`
+- **Bootstrap Servers:** `localhost:29023`
 - **Environment:** Development (single-node)
 - **Serialization:** JSON
 
@@ -95,7 +95,7 @@ spring:
             back-off-multiplier: 3.0
       kafka:
         binder:
-          brokers: localhost:29092
+          brokers: localhost:29023
         bindings:
           itemsReservedConsumer-in-0:
             consumer:
@@ -144,7 +144,7 @@ spring:
             back-off-multiplier: 3.0
       kafka:
         binder:
-          brokers: localhost:29092
+          brokers: localhost:29023
         bindings:
           orderCreatedConsumer-in-0:
             consumer:
@@ -174,7 +174,7 @@ spring:
             back-off-multiplier: 3.0
       kafka:
         binder:
-          brokers: localhost:29092
+          brokers: localhost:29023
         bindings:
           allEventsConsumer-in-0:
             consumer:
@@ -211,7 +211,7 @@ spring:
     stream:
       kafka:
         binder:
-          brokers: localhost:29092
+          brokers: localhost:29023
 ```
 
 With:

@@ -154,7 +154,7 @@ spring:
           content-type: application/json
       kafka:
         binder:
-          brokers: localhost:29092
+          brokers: localhost:29023
 ```
 
 ### Producer Implementation

@@ -26,6 +26,30 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  
+  # Spring Cloud Stream Configuration
+  cloud:
+    function:
+      definition: orderCreatedConsumer
+    stream:
+      bindings:
+        # Consumer for OrderCreated events from Order Service
+        orderCreatedConsumer-in-0:
+          destination: order-service.orders.created
+          group: inventory-service-group
+          content-type: application/json
+          consumer:
+            max-attempts: 3
+            back-off-initial-interval: 5000
+            back-off-multiplier: 3.0
+      kafka:
+        binder:
+          brokers: localhost:29023
+        bindings:
+          orderCreatedConsumer-in-0:
+            consumer:
+              enable-dlq: true
+              dlq-name: inventory-service.dlq
 
 server:
   port: 8082

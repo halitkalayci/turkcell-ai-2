@@ -25,6 +25,30 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  
+  # Spring Cloud Stream Configuration
+  cloud:
+    function:
+      definition: itemsReservedConsumer
+    stream:
+      bindings:
+        # Consumer for ItemsReserved events from Inventory Service
+        itemsReservedConsumer-in-0:
+          destination: inventory-service.items.reserved
+          group: order-service-group
+          content-type: application/json
+          consumer:
+            max-attempts: 3
+            back-off-initial-interval: 5000
+            back-off-multiplier: 3.0
+      kafka:
+        binder:
+          brokers: localhost:29023
+        bindings:
+          itemsReservedConsumer-in-0:
+            consumer:
+              enable-dlq: true
+              dlq-name: order-service.dlq
 
 server:
   port: 8081

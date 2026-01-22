@@ -1,6 +1,8 @@
 package com.ecommerce.orderservice.application.usecase;
 
 import com.ecommerce.orderservice.application.dto.OrderItemDto;
+import com.ecommerce.orderservice.application.service.OutboxService;
+import com.ecommerce.orderservice.domain.event.OrderCreatedEvent;
 import com.ecommerce.orderservice.domain.model.Address;
 import com.ecommerce.orderservice.domain.model.Order;
 import com.ecommerce.orderservice.domain.model.OrderItem;
@@ -24,6 +26,7 @@ import java.util.stream.Collectors;
 public class CreateOrderUseCase {
     
     private final OrderRepository orderRepository;
+    private final OutboxService outboxService;
     
     @Transactional
     public Order execute(UUID customerId, Address deliveryAddress, List<OrderItemDto> itemDtos) {
@@ -45,7 +48,35 @@ public class CreateOrderUseCase {
         // Persist
         Order savedOrder = orderRepository.save(order);
         
+        // Publish OrderCreated event via outbox
+        publishOrderCreatedEvent(savedOrder);
+        
         log.info("Order created successfully with ID: {}", savedOrder.getId());
         return savedOrder;
+    }
+    
+    private void publishOrderCreatedEvent(Order order) {
+        UUID correlationId = UUID.randomUUID(); // In real scenario, get from request context
+        
+        List<OrderCreatedEvent.OrderItem> eventItems = order.getItems().stream()
+            .map(item -> new OrderCreatedEvent.OrderItem(
+                item.getProductId(),
+                item.getQuantity(),
+                item.getUnitPrice().toString()
+            ))
+            .collect(Collectors.toList());
+        
+        OrderCreatedEvent event = new OrderCreatedEvent(
+            order.getId(),
+            order.getCustomerId(),
+            eventItems,
+            order.getTotalAmount(),
+            correlationId
+        );
+        
+        outboxService.saveToOutbox(event);
+        
+        log.info("OrderCreated event saved to outbox: orderId={}, correlationId={}", 
+            order.getId(), correlationId);
     }
 }

@@ -118,7 +118,7 @@ Last Updated: 2026-01-22
   - Future-proof architecture for technology changes
 * **Implementation:**
   - Spring Cloud Stream with functional programming model
-  - Current binder: Kafka (localhost:29092)
+  - Current binder: Kafka (localhost:29023)
   - Define bindings as Supplier (producer), Function (processor), Consumer (consumer)
   - No direct Kafka API usage in application code
   - Binder configuration in application.yml

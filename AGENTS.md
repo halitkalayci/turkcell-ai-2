@@ -236,7 +236,7 @@ ALL events MUST follow this structure:
   - DLQ handlers
 
 ### 6.7 Messaging Configuration
-- Current binder: Kafka (bootstrap servers: `localhost:29092`)
+- Current binder: Kafka (bootstrap servers: `localhost:29023`)
 - All services connect to same message broker
 - Destination naming: `{service-name}.{domain}.{event-type}`
 - DLQ naming: `{service-name}.dlq`
