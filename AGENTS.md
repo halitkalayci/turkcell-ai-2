@@ -137,6 +137,20 @@ Each service MUST follow `Hexagonal Architecture` principles.
 
 - Never mix UUID and Long unless explicitly required by contract.
 
+### 4.4) Optimistic Locking
+
+- ALL entities with concurrent access MUST use `@Version`
+
+- NEVER manually set both `id` and `version=null` for entities with @Version
+
+- Mappers MUST separate:
+  - `toEntity()`: New entities (no ID/version)
+  - `updateEntity()`: Update existing (preserve ID/version)
+
+- Repository adapters MUST check existence before save
+
+- See: [optimistic-locking-guidelines.md](docs/architecture/optimistic-locking-guidelines.md)
+
 ## 5) GATEWAY RULES
 
 ### 5.1 Gateway Responsibilities
