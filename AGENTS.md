@@ -255,3 +255,220 @@ ALL events MUST follow this structure:
 - Destination naming: `{service-name}.{domain}.{event-type}`
 - DLQ naming: `{service-name}.dlq`
 - Binder can be switched to RabbitMQ or others via configuration only
+
+## 7) SECURITY & AUTHENTICATION
+
+### 7.1 Keycloak Integration (MANDATORY)
+
+ALL services MUST use Keycloak for authentication & authorization.
+
+- **Keycloak Version**: 26.5.1
+- **Realm**: `ecommerce`
+- **Protocol**: OAuth2 / OpenID Connect
+- **Token Type**: JWT (Bearer)
+- **Docker Setup**: See `docs/security/keycloak-integration.md`
+
+### 7.2 Operation-Based Claims (NOT Role-Based)
+
+We use **operation-based claims** for fine-grained permissions:
+
+✅ **Correct**: `@PreAuthorize("hasAuthority('order.create')")`  
+❌ **Wrong**: `@PreAuthorize("hasRole('ADMIN')")`
+
+**Claim Naming Convention**: `<resource>.<operation>`
+- Examples: `order.create`, `inventory.read`, `reservation.confirm`
+- Special: `order.read.own` (user-specific), `order.read.all` (admin-level)
+
+See: `docs/security/operation-claims-guide.md` for complete list.
+
+### 7.3 Service Layer Security
+
+#### Gateway Service
+- **Role**: OAuth2 Client + Resource Server
+- **Responsibilities**:
+  - Validates JWT tokens (signature, expiration, issuer)
+  - Forwards tokens to downstream services (TokenRelay filter)
+  - Early authorization checks (optional, for performance)
+- **Dependencies**: 
+  - `spring-boot-starter-oauth2-client`
+  - `spring-boot-starter-oauth2-resource-server`
+  - `spring-cloud-starter-gateway`
+
+#### Backend Services (Order, Inventory)
+- **Role**: Resource Server
+- **Responsibilities**:
+  - Validate JWT signatures (defense in depth)
+  - Extract claims for authorization
+  - Use `@PreAuthorize` on controller methods
+  - Extract user context from JWT (`sub`, `preferred_username`)
+- **Dependencies**:
+  - `spring-boot-starter-security`
+  - `spring-boot-starter-oauth2-resource-server`
+
+### 7.4 Token Propagation
+
+- Gateway MUST use `TokenRelay=` filter for all routes
+- Backend services MUST extract user context from JWT:
+  ```java
+  @AuthenticationPrincipal Jwt jwt
+  String userId = jwt.getSubject();
+  String username = jwt.getClaimAsString("preferred_username");
+  List<String> orderClaims = jwt.getClaim("order_claims");
+  ```
+
+### 7.5 Security Configuration Rules
+
+- ALL endpoints (except actuator, swagger) MUST be authenticated
+- Use `SessionCreationPolicy.STATELESS` (no server-side sessions)
+- CSRF protection disabled (token-based security)
+- NEVER store credentials in code/config (use environment variables)
+- Token lifespan: Access Token (15 min), Refresh Token (30 min)
+
+**Example SecurityConfig**:
+```java
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity(prePostEnabled = true)
+public class SecurityConfig {
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) {
+        http
+            .csrf(csrf -> csrf.disable())
+            .sessionManagement(s -> s.sessionCreationPolicy(STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/actuator/**").permitAll()
+                .anyRequest().authenticated()
+            )
+            .oauth2ResourceServer(oauth2 -> oauth2.jwt());
+        return http.build();
+    }
+}
+```
+
+### 7.6 Controller Authorization
+
+- Use `@PreAuthorize` on ALL controller methods
+- Extract JWT for user context:
+  ```java
+  @PostMapping
+  @PreAuthorize("hasAuthority('order.create')")
+  public ResponseEntity<OrderResponseDto> createOrder(
+          @Valid @RequestBody OrderRequestDto request,
+          @AuthenticationPrincipal Jwt jwt) {
+      
+      String userId = jwt.getSubject();
+      // Business logic...
+  }
+  ```
+
+- For `*.own` claims, implement ownership checks in service layer:
+  ```java
+  public OrderResponseDto getOrder(UUID orderId, String userId, boolean canReadAll) {
+      Order order = orderRepository.findById(orderId).orElseThrow();
+      
+      // Ownership check
+      if (!canReadAll && !order.getCustomerId().equals(userId)) {
+          throw new ForbiddenException("Cannot access other user's orders");
+      }
+      
+      return mapper.toDto(order);
+  }
+  ```
+
+### 7.7 JWT Claims Extraction
+
+Backend services MUST implement `JwtClaimsConverter` to extract claims:
+
+```java
+@Component
+public class JwtClaimsConverter implements Converter<Jwt, AbstractAuthenticationToken> {
+    
+    @Override
+    public AbstractAuthenticationToken convert(Jwt jwt) {
+        // Extract custom claims (e.g., "order_claims")
+        List<String> claims = jwt.getClaim("order_claims");
+        
+        Collection<GrantedAuthority> authorities = claims.stream()
+                .map(SimpleGrantedAuthority::new)
+                .collect(Collectors.toList());
+        
+        return new JwtAuthenticationToken(jwt, authorities);
+    }
+}
+```
+
+Register in SecurityConfig:
+```java
+.oauth2ResourceServer(oauth2 -> oauth2
+    .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtClaimsConverter))
+)
+```
+
+### 7.8 Adding New Claims
+
+When adding new endpoints/resources:
+
+1. **Define claim**: Follow naming convention `resource.operation`
+2. **Create in Keycloak**: Client → Roles → Create role
+3. **Update composite roles**: Assign to appropriate roles (Customer, Admin, etc.)
+4. **Update mappers** (if needed): Add to client scope mappers
+5. **Implement in code**: Add `@PreAuthorize("hasAuthority('new.claim')")`
+6. **Update OpenAPI**: Add security requirement to endpoint
+7. **Document**: Update `docs/security/operation-claims-guide.md`
+8. **Test**: Add positive & negative test cases
+
+### 7.9 Configuration Files
+
+#### Gateway (application.yml)
+```yaml
+spring:
+  security:
+    oauth2:
+      client:
+        provider:
+          keycloak:
+            issuer-uri: http://localhost:8180/realms/ecommerce
+        registration:
+          keycloak:
+            client-id: gateway-client
+            client-secret: ${KEYCLOAK_CLIENT_SECRET}
+            scope: openid,profile,email
+            authorization-grant-type: authorization_code
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/ecommerce
+  cloud:
+    gateway:
+      routes:
+        - id: order-service
+          filters:
+            - TokenRelay=
+```
+
+#### Backend Services (application.yml)
+```yaml
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/ecommerce
+          jwk-set-uri: http://localhost:8180/realms/ecommerce/protocol/openid-connect/certs
+```
+
+### 7.10 Testing Security
+
+- Use `@WithMockJwt` for unit tests (custom annotation)
+- Integration tests with real Keycloak (Testcontainers)
+- Test positive (allowed) and negative (forbidden) cases
+- Test unauthenticated access (401)
+- Test missing claims (403)
+- See: `docs/security/security-testing-guide.md`
+
+### 7.11 References
+
+- **Keycloak Setup**: [docs/security/keycloak-integration.md](docs/security/keycloak-integration.md)
+- **Claims Reference**: [docs/security/operation-claims-guide.md](docs/security/operation-claims-guide.md)
+- **Token Structure**: [docs/security/jwt-token-structure.md](docs/security/jwt-token-structure.md)
+- **Testing Guide**: [docs/security/security-testing-guide.md](docs/security/security-testing-guide.md)
+- **Architecture ADR**: [docs/architecture/security-architecture.md](docs/architecture/security-architecture.md)

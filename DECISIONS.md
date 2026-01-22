@@ -1,5 +1,5 @@
 # ARCHITECTURE DECISION RECORDS - E-COMMERCE PLATFORM
-Last Updated: 2026-01-21
+Last Updated: 2026-01-22
 
 
 This document records the architectural decisions made for this project.
@@ -286,3 +286,62 @@ Last Updated: 2026-01-22
 * **Alternatives Considered:** 
   - Avro with Schema Registry (rejected: overkill for project size)
   - Protobuf (rejected: added complexity, less readable)
+
+---
+
+## ADR-009: Keycloak with Operation-Based Claims Security Architecture
+Last Updated: 2026-01-22
+
+* **Status:** ACCEPTED
+* **Decision:** Keycloak 26.5.1 for centralized IAM with operation-based claims authorization
+* **Reason:** 
+  - Centralized identity management (Single Source of Truth)
+  - Fine-grained permission control (operation-based claims, not roles)
+  - OAuth2/OIDC industry standards
+  - Token-based stateless security (scalable)
+  - SSO support for future requirements
+  - Open-source, mature, production-ready
+* **Technology Stack:**
+  - **Identity Provider**: Keycloak 26.5.1
+  - **Protocol**: OAuth2 / OpenID Connect
+  - **Token Format**: JWT (Bearer tokens)
+  - **Realm**: `ecommerce`
+* **Authorization Model:**
+  - **Operation-Based Claims** (NOT role-based)
+  - Format: `<resource>.<operation>` (e.g., `order.create`, `inventory.read`)
+  - Claims implemented as Keycloak client roles
+  - Composite roles group common claims (Customer, Admin, InventoryManager, etc.)
+* **Architecture:**
+  ```
+  Client → Gateway (OAuth2 Client) → Keycloak (Auth) → JWT Token
+           ↓ (TokenRelay)
+        Backend Services (Resource Server) → Validate JWT → Extract Claims → Authorize
+  ```
+* **Implementation:**
+  - Gateway: OAuth2 Client + Resource Server (validates & forwards tokens)
+  - Backend Services: Resource Server (validates tokens, extracts claims)
+  - All endpoints protected with `@PreAuthorize("hasAuthority('claim')")`
+  - User context extracted from JWT (`sub`, `preferred_username`, custom claims)
+* **Token Lifespan:**
+  - Access Token: 15 minutes
+  - Refresh Token: 30 minutes
+  - SSO Session: 10 hours
+* **Security Features:**
+  - Cryptographic signatures (RS256)
+  - Token expiration and refresh
+  - Defense in depth (gateway + backend validation)
+  - Stateless authentication (no server-side sessions)
+* **Consequences:**
+  - **Positive**: Centralized user management, fine-grained authorization, scalability, SSO-ready
+  - **Negative**: Initial setup complexity, token size increase, operational overhead (HA required)
+* **Alternatives Considered:**
+  - Spring Security + Database (rejected: no SSO, code duplication)
+  - Auth0/Okta (rejected: vendor lock-in, cost)
+  - Custom OAuth2 Server (rejected: reinventing the wheel)
+* **Documentation:**
+  - Full ADR: [docs/architecture/security-architecture.md](docs/architecture/security-architecture.md)
+  - Setup Guide: [docs/security/keycloak-integration.md](docs/security/keycloak-integration.md)
+  - Claims Reference: [docs/security/operation-claims-guide.md](docs/security/operation-claims-guide.md)
+  - Token Structure: [docs/security/jwt-token-structure.md](docs/security/jwt-token-structure.md)
+  - Testing Guide: [docs/security/security-testing-guide.md](docs/security/security-testing-guide.md)
+  - AGENTS.md Section 7: Security & Authentication rules

@@ -569,11 +569,29 @@ components:
       example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 
   securitySchemes:
+    keycloak_oauth:
+      type: oauth2
+      description: Keycloak OAuth2 authentication with operation-based claims
+      flows:
+        authorizationCode:
+          authorizationUrl: http://localhost:8180/realms/ecommerce/protocol/openid-connect/auth
+          tokenUrl: http://localhost:8180/realms/ecommerce/protocol/openid-connect/token
+          scopes:
+            inventory.read: Read inventory data
+            inventory.write: Update inventory data
+            inventory.create: Create inventory items
+            inventory.delete: Delete inventory items
+            reservation.create: Create stock reservations
+            reservation.read: Read reservation details
+            reservation.confirm: Confirm reservations
+            reservation.cancel: Cancel reservations
+    
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: "JWT token-based authentication. Obtain token from the authentication service."
+      description: JWT token obtained from Keycloak (Bearer token authentication)
 
 security:
+  - keycloak_oauth: []
   - BearerAuth: []

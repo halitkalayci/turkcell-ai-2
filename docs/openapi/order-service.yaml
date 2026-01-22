@@ -462,11 +462,29 @@ components:
           example: "/api/v1/orders"
 
   securitySchemes:
+    keycloak_oauth:
+      type: oauth2
+      description: Keycloak OAuth2 authentication with operation-based claims
+      flows:
+        authorizationCode:
+          authorizationUrl: http://localhost:8180/realms/ecommerce/protocol/openid-connect/auth
+          tokenUrl: http://localhost:8180/realms/ecommerce/protocol/openid-connect/token
+          scopes:
+            order.create: Create new orders
+            order.read: Read order details
+            order.read.own: Read own orders only
+            order.read.all: Read all orders (admin)
+            order.update: Update order information
+            order.cancel: Cancel orders
+            order.delete: Delete orders
+            order.status.update: Update order status
+    
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: JWT token-based authentication
+      description: JWT token obtained from Keycloak (Bearer token authentication)
 
 security:
+  - keycloak_oauth: []
   - BearerAuth: []
