@@ -16,6 +16,11 @@ public enum OrderStatus {
     PENDING,
     
     /**
+     * Order has been confirmed and items reserved
+     */
+    CONFIRMED,
+    
+    /**
      * Order has been shipped to customer
      */
     SHIPPED,
@@ -32,12 +37,12 @@ public enum OrderStatus {
     
     /**
      * Checks if an order in this status can be cancelled.
-     * Only PREPARING and PENDING orders can be cancelled.
+     * Only PREPARING, PENDING, and CONFIRMED orders can be cancelled.
      * 
      * @return true if cancellable, false otherwise
      */
     public boolean canBeCancelled() {
-        return this == PREPARING || this == PENDING;
+        return this == PREPARING || this == PENDING || this == CONFIRMED;
     }
     
     /**

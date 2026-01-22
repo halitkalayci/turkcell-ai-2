@@ -30,7 +30,7 @@ spring:
   # Spring Cloud Stream Configuration
   cloud:
     function:
-      definition: orderCreatedConsumer
+      definition: orderCreatedConsumer;itemsReservedSupplier;reservationFailedSupplier
     stream:
       bindings:
         # Consumer for OrderCreated events from Order Service
@@ -42,6 +42,14 @@ spring:
             max-attempts: 3
             back-off-initial-interval: 5000
             back-off-multiplier: 3.0
+        # Producer for ItemsReserved events
+        itemsReservedSupplier-out-0:
+          destination: inventory-service.items.reserved
+          content-type: application/json
+        # Producer for ReservationFailed events
+        reservationFailedSupplier-out-0:
+          destination: inventory-service.items.reservation-failed
+          content-type: application/json
       kafka:
         binder:
           brokers: localhost:29023

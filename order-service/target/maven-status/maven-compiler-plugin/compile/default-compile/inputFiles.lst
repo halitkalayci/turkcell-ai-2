@@ -1,4 +1,5 @@
 C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\order-service\src\main\java\com\ecommerce\orderservice\application\config\UseCaseConfig.java
+C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\order-service\src\main\java\com\ecommerce\orderservice\domain\event\ReservationFailedEvent.java
 C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\order-service\src\main\java\com\ecommerce\orderservice\web\dto\request\UpdateStatusRequestDto.java
 C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\order-service\src\main\java\com\ecommerce\orderservice\web\dto\request\OrderRequestDto.java
 C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\order-service\src\main\java\com\ecommerce\orderservice\application\usecase\UpdateOrderStatusUseCase.java
@@ -15,6 +16,7 @@ C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\order-service\src\mai
 C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\order-service\src\main\java\com\ecommerce\orderservice\domain\port\OrderRepository.java
 C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\order-service\src\main\java\com\ecommerce\orderservice\infrastructure\messaging\publisher\OutboxEventPublisher.java
 C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\order-service\src\main\java\com\ecommerce\orderservice\application\service\OutboxService.java
+C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\order-service\src\main\java\com\ecommerce\orderservice\application\service\OrderEventHandler.java
 C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\order-service\src\main\java\com\ecommerce\orderservice\infrastructure\messaging\consumer\OrderEventConsumers.java
 C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\order-service\src\main\java\com\ecommerce\orderservice\infrastructure\persistence\adapter\OrderRepositoryAdapter.java
 C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\order-service\src\main\java\com\ecommerce\orderservice\config\MessagingConfig.java

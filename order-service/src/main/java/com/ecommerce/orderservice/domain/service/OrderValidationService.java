@@ -80,6 +80,7 @@ public class OrderValidationService {
             case PENDING -> newStatus == OrderStatus.SHIPPED || newStatus == OrderStatus.CANCELLED;
             case SHIPPED -> newStatus == OrderStatus.DELIVERED;
             case DELIVERED, CANCELLED -> false; // Final states
+            default -> throw new IllegalArgumentException("Unexpected value: " + currentStatus);
         };
     }
 }

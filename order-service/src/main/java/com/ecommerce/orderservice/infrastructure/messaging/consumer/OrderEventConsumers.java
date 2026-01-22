@@ -1,6 +1,8 @@
 package com.ecommerce.orderservice.infrastructure.messaging.consumer;
 
+import com.ecommerce.orderservice.application.service.OrderEventHandler;
 import com.ecommerce.orderservice.domain.event.ItemsReservedEvent;
+import com.ecommerce.orderservice.domain.event.ReservationFailedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -18,9 +20,10 @@ import java.util.function.Consumer;
 @Slf4j
 public class OrderEventConsumers {
     
+    private final OrderEventHandler orderEventHandler;
+    
     /**
      * Consumer for ItemsReserved events from Inventory Service.
-     * Will be implemented fully when order confirmation logic is added.
      */
     @Bean
     public Consumer<Message<ItemsReservedEvent>> itemsReservedConsumer() {
@@ -32,11 +35,36 @@ public class OrderEventConsumers {
                 event.getPayload().getReservationId(), 
                 event.getPayload().getOrderId());
             
-            // TODO: Update order status to CONFIRMED
-            // Will be implemented in next iteration
+            try {
+                orderEventHandler.handleItemsReserved(event);
+            } catch (Exception e) {
+                log.error("Error processing ItemsReserved event: eventId={}", 
+                    event.getEventId(), e);
+                throw e; // Trigger retry
+            }
+        };
+    }
+    
+    /**
+     * Consumer for ReservationFailed events from Inventory Service.
+     */
+    @Bean
+    public Consumer<Message<ReservationFailedEvent>> reservationFailedConsumer() {
+        return message -> {
+            ReservationFailedEvent event = message.getPayload();
             
-            log.info("ItemsReserved event processed (placeholder): orderId={}", 
-                event.getPayload().getOrderId());
+            log.info("Received ReservationFailed event: eventId={}, orderId={}, reason={}", 
+                event.getEventId(), 
+                event.getPayload().getOrderId(),
+                event.getPayload().getReason());
+            
+            try {
+                orderEventHandler.handleReservationFailed(event);
+            } catch (Exception e) {
+                log.error("Error processing ReservationFailed event: eventId={}", 
+                    event.getEventId(), e);
+                throw e; // Trigger retry
+            }
         };
     }
 }

@@ -25,6 +25,7 @@ C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\inventory-service\src
 C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\inventory-service\src\main\java\com\ecommerce\inventoryservice\infrastructure\messaging\consumer\InventoryEventConsumers.java
 C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\inventory-service\src\main\java\com\ecommerce\inventoryservice\domain\service\ReservationService.java
 C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\inventory-service\src\main\java\com\ecommerce\inventoryservice\domain\exception\InvalidReservationStateException.java
+C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\inventory-service\src\main\java\com\ecommerce\inventoryservice\domain\event\ReservationFailedEvent.java
 C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\inventory-service\src\main\java\com\ecommerce\inventoryservice\domain\port\InventoryRepository.java
 C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\inventory-service\src\main\java\com\ecommerce\inventoryservice\infrastructure\messaging\outbox\OutboxEventRepository.java
 C:\Users\PC1\Desktop\Projects\Education\Java\turkcell-ai-2\inventory-service\src\main\java\com\ecommerce\inventoryservice\application\usecase\CheckAvailabilityUseCase.java

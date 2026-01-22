@@ -4,6 +4,7 @@ import com.ecommerce.inventoryservice.domain.port.InventoryRepository;
 import com.ecommerce.inventoryservice.domain.port.ReservationRepository;
 import com.ecommerce.inventoryservice.domain.event.ItemsReservedEvent;
 import com.ecommerce.inventoryservice.domain.event.OrderCreatedEvent;
+import com.ecommerce.inventoryservice.domain.event.ReservationFailedEvent;
 import com.ecommerce.inventoryservice.domain.exception.InsufficientStockException;
 import com.ecommerce.inventoryservice.domain.model.InventoryItem;
 import com.ecommerce.inventoryservice.domain.model.Reservation;
@@ -74,7 +75,17 @@ public class ReservationService {
             // Mark as processed to avoid retry (business failure, not technical)
             processedEventRepository.save(new ProcessedEvent(eventId, event.getEventType()));
             
-            // TODO: Publish ReservationFailed event (not in scope for this task)
+            // Publish ReservationFailed event
+            publishReservationFailedEvent(event.getPayload(), "INSUFFICIENT_STOCK", e.getMessage(), correlationId);
+            
+        } catch (IllegalArgumentException e) {
+            log.warn("Product not found for order: orderId={}, reason={}", orderId, e.getMessage());
+            
+            // Mark as processed to avoid retry (business failure, not technical)
+            processedEventRepository.save(new ProcessedEvent(eventId, event.getEventType()));
+            
+            // Publish ReservationFailed event
+            publishReservationFailedEvent(event.getPayload(), "PRODUCT_NOT_FOUND", e.getMessage(), correlationId);
             
         } catch (Exception e) {
             log.error("Failed to process OrderCreated event: eventId={}, orderId={}", 
@@ -162,5 +173,43 @@ public class ReservationService {
         
         log.info("ItemsReserved event saved to outbox: reservationId={}, orderId={}, correlationId={}", 
             reservation.getId(), reservation.getOrderId(), correlationId);
+    }
+    
+    private void publishReservationFailedEvent(OrderCreatedEvent.OrderCreatedPayload payload, 
+                                               String reason, String errorMessage, UUID correlationId) {
+        UUID orderId = payload.getOrderId();
+        List<OrderCreatedEvent.OrderItem> orderItems = payload.getItems();
+        
+        List<ReservationFailedEvent.UnavailableItem> unavailableItems = new ArrayList<>();
+        
+        for (OrderCreatedEvent.OrderItem orderItem : orderItems) {
+            UUID productId = orderItem.getProductId();
+            Integer requestedQuantity = orderItem.getQuantity();
+            
+            // Try to get available quantity
+            Integer availableQuantity = 0;
+            Optional<InventoryItem> inventoryItem = inventoryRepository.findByProductId(productId);
+            if (inventoryItem.isPresent()) {
+                availableQuantity = inventoryItem.get().getAvailableQuantity();
+            }
+            
+            unavailableItems.add(new ReservationFailedEvent.UnavailableItem(
+                productId,
+                requestedQuantity,
+                availableQuantity
+            ));
+        }
+        
+        ReservationFailedEvent event = new ReservationFailedEvent(
+            orderId,
+            reason,
+            unavailableItems,
+            correlationId
+        );
+        
+        outboxService.saveToOutbox(event);
+        
+        log.info("ReservationFailed event saved to outbox: orderId={}, reason={}, correlationId={}", 
+            orderId, reason, correlationId);
     }
 }
