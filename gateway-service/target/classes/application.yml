@@ -1,0 +1,50 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gateway-service
+  cloud:
+    gateway:
+      routes:
+        - id: order-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/v1/orders/**
+          
+        - id: inventory-items
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/v1/inventory-items/**
+            
+        - id: reservations
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/v1/reservations/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,gateway
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+info:
+  app:
+    name: Gateway Service
+    description: API Gateway for E-Commerce Microservices
+    version: 1.0.0
+  java:
+    version: ${java.version}
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    com.ecommerce.gateway: DEBUG
