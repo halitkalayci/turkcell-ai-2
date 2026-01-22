@@ -172,3 +172,72 @@ See `docs/gateway-integration-guidelines.md` for complete checklist.
 - Services: `8081+` (incremental, never reuse)
 
 Gateway is the ONLY service clients access directly.
+
+## 6) EVENT-DRIVEN MESSAGING
+
+### 6.1 Event Contract First
+- Event contracts live under: `/docs/events`
+- Messaging configuration: `docs/events/messaging-configuration.md`
+- Inter-service events: Separate files per domain (e.g., `order-events.md`, `inventory-events.md`, `notification-events.md`)
+- Event schemas MUST be defined before implementation
+- Events are immutable once published
+- Use JSON for event serialization
+
+### 6.2 Spring Cloud Stream (Abstraction Layer)
+- ALL services MUST use Spring Cloud Stream for messaging
+- Do NOT use Kafka-specific APIs directly
+- Use binder abstraction to support multiple message brokers (Kafka, RabbitMQ, etc.)
+- Define channels via functional programming model (Supplier, Function, Consumer)
+- Binder can be switched via configuration without code changes
+
+### 6.3 Transactional Outbox Pattern (MANDATORY)
+- ALL producers MUST use Transactional Outbox Pattern
+- Outbox table MUST be in same database as business entities
+- Outbox publisher uses polling with @Scheduled(fixedDelay = 10000)
+- No direct message broker publishing from business logic
+- Publisher workflow:
+  1. Business logic writes to DB + outbox in same transaction
+  2. Separate scheduled job polls outbox for unpublished events
+  3. Publishes via Spring Cloud Stream
+  4. Marks as published in outbox
+
+### 6.4 Consumer Guarantees
+- **Idempotency:** ALL consumers MUST be idempotent
+  - Track processed event IDs in `processed_events` table
+  - Check before processing (if exists, skip)
+  - Use `eventId` as idempotency key
+- **Retry:** Failed messages MUST be retried with exponential backoff
+  - Max 3 retries with delays: 5s, 15s, 45s
+  - Use Spring Cloud Stream retry configuration
+- **DLQ:** After max retries, messages MUST go to Dead Letter Queue
+  - Each service has its own DLQ destination
+  - DLQ messages stored with error metadata for manual review
+
+### 6.5 Event Structure (Standard Envelope)
+ALL events MUST follow this structure:
+```json
+{
+  "eventId": "uuid (required)",
+  "eventType": "string (required)",
+  "eventTimestamp": "ISO-8601 (required)",
+  "correlationId": "uuid (required, for tracing)",
+  "aggregateId": "uuid (required, business entity ID)",
+  "payload": { }
+}
+```
+
+### 6.6 Layering for Events
+- **Domain:** Event domain models (business events)
+- **Application:** Event handlers (use-case triggers), outbox service
+- **Infrastructure:** 
+  - Spring Cloud Stream bindings
+  - Outbox repository & entity
+  - Processed events repository
+  - DLQ handlers
+
+### 6.7 Messaging Configuration
+- Current binder: Kafka (bootstrap servers: `localhost:29092`)
+- All services connect to same message broker
+- Destination naming: `{service-name}.{domain}.{event-type}`
+- DLQ naming: `{service-name}.dlq`
+- Binder can be switched to RabbitMQ or others via configuration only

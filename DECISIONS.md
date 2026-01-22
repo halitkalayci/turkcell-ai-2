@@ -102,3 +102,187 @@ Last Updated: 2026-01-22
   - Service-based routing (e.g., /order-service/**) - rejected: exposes internal service names
   - Header-based routing - rejected: not RESTful, harder to test
   - Wildcard catch-all route - rejected: too broad, loses routing clarity
+
+---
+
+## ADR-005: Spring Cloud Stream for Messaging Abstraction
+Last Updated: 2026-01-22
+
+* **Status:** Accepted
+* **Decision:** Spring Cloud Stream as messaging abstraction layer
+* **Reason:** 
+  - Decouples application code from specific message broker
+  - Enables switching between Kafka, RabbitMQ, or other brokers via configuration
+  - Provides unified programming model (functional style)
+  - Built-in retry, DLQ, and error handling
+  - Future-proof architecture for technology changes
+* **Implementation:**
+  - Spring Cloud Stream with functional programming model
+  - Current binder: Kafka (localhost:29092)
+  - Define bindings as Supplier (producer), Function (processor), Consumer (consumer)
+  - No direct Kafka API usage in application code
+  - Binder configuration in application.yml
+* **Example:**
+  ```java
+  @Bean
+  public Supplier<Message<OrderCreatedEvent>> orderCreatedPublisher() {
+      // Producer implementation
+  }
+  
+  @Bean
+  public Consumer<Message<OrderCreatedEvent>> orderCreatedConsumer() {
+      // Consumer implementation
+  }
+  ```
+* **Migration Strategy:**
+  - Start with Kafka binder for development
+  - Can switch to RabbitMQ by changing dependency + configuration
+  - No application code changes needed for binder switch
+* **Alternatives Considered:** 
+  - Direct Spring Kafka usage (rejected: tight coupling to Kafka)
+  - JMS API (rejected: less modern, limited features)
+  - Custom abstraction layer (rejected: reinventing the wheel)
+
+---
+
+## ADR-006: Transactional Outbox Pattern
+Last Updated: 2026-01-22
+
+* **Status:** Accepted
+* **Decision:** Mandatory Transactional Outbox Pattern for all message producers
+* **Reason:** 
+  - Guarantees atomic write to DB + event publishing
+  - Prevents data inconsistency (DB committed but message broker failed)
+  - Ensures "at-least-once" delivery guarantee
+  - Survives message broker downtime
+  - Works seamlessly with Spring Cloud Stream
+* **Implementation:**
+  - Each service has `outbox_events` table in its database
+  - Business transaction writes to domain tables + outbox in same TX
+  - Separate @Scheduled publisher polls outbox every 10 seconds
+  - Publisher reads unpublished events, sends via Spring Cloud Stream, marks as published
+  - No cleanup (events remain for audit trail)
+* **Outbox Table Schema:**
+  ```sql
+  CREATE TABLE outbox_events (
+    id UUID PRIMARY KEY,
+    aggregate_id UUID NOT NULL,
+    event_type VARCHAR(255) NOT NULL,
+    payload TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    published_at TIMESTAMP,
+    status VARCHAR(20) NOT NULL  -- PENDING, PUBLISHED, FAILED
+  );
+  ```
+* **Spring Cloud Stream Integration:**
+  - Outbox publisher uses StreamBridge to send messages
+  - Dynamic destination routing via StreamBridge
+* **Alternatives Considered:** 
+  - Direct message publishing (rejected: no transactional guarantee)
+  - Change Data Capture/Debezium (rejected: added complexity)
+  - Two-phase commit (rejected: performance overhead)
+
+---
+
+## ADR-007: Consumer Reliability Patterns
+Last Updated: 2026-01-22
+
+* **Status:** Accepted
+* **Decision:** Idempotency + Retry + DLQ for all message consumers
+* **Reason:** 
+  - Message brokers typically guarantee "at-least-once" delivery (duplicates possible)
+  - Network failures require retry mechanisms
+  - Poison messages must not block processing
+  - Consumer crashes must not lose messages
+* **Implementation:**
+  - **Idempotency:** 
+    - Each service has `processed_events` table
+    - Columns: event_id (PK), processed_at, event_type
+    - Before processing, check if event_id exists
+    - If exists, skip processing (already handled)
+    - Insert event_id after successful processing (in same TX as business logic)
+  - **Retry:**
+    - Spring Cloud Stream retry configuration
+    - Max 3 retries with delays: 5s, 15s, 45s (exponential backoff)
+    - After max retries → send to DLQ
+  - **Dead Letter Queue:**
+    - DLQ destination per service: `order-service.dlq`, `inventory-service.dlq`, `notification-service.dlq`
+    - Store failed message with error metadata
+    - Manual review/reprocessing workflow (future enhancement)
+* **Processed Events Table Schema:**
+  ```sql
+  CREATE TABLE processed_events (
+    event_id UUID PRIMARY KEY,
+    event_type VARCHAR(255) NOT NULL,
+    processed_at TIMESTAMP NOT NULL
+  );
+  ```
+* **Spring Cloud Stream Configuration:**
+  ```yaml
+  spring:
+    cloud:
+      stream:
+        bindings:
+          {binding-name}:
+            consumer:
+              max-attempts: 3
+              back-off-initial-interval: 5000
+              back-off-multiplier: 3.0
+        kafka:
+          bindings:
+            {binding-name}:
+              consumer:
+                enable-dlq: true
+                dlq-name: {service-name}.dlq
+  ```
+* **Alternatives Considered:** 
+  - No idempotency (rejected: duplicate processing risk)
+  - Infinite retry (rejected: blocks partition processing)
+  - No DLQ (rejected: silent data loss)
+
+---
+
+## ADR-008: JSON Event Serialization
+Last Updated: 2026-01-22
+
+* **Status:** Accepted
+* **Decision:** JSON for event serialization
+* **Reason:** 
+  - Human-readable (easier debugging)
+  - No schema registry infrastructure needed
+  - Sufficient for project scale (3 services)
+  - Spring Cloud Stream native JSON support
+  - Standard Jackson serialization
+  - Works with any binder (Kafka, RabbitMQ, etc.)
+* **Implementation:**
+  - Spring Cloud Stream JSON message converter
+  - All events follow standard envelope structure
+  - Money fields serialized as strings (BigDecimal → String)
+  - Timestamps in ISO-8601 format
+* **Event Envelope Standard:**
+  ```json
+  {
+    "eventId": "uuid",
+    "eventType": "string",
+    "eventTimestamp": "ISO-8601",
+    "correlationId": "uuid",
+    "aggregateId": "uuid",
+    "payload": { }
+  }
+  ```
+* **Spring Cloud Stream Configuration:**
+  ```yaml
+  spring:
+    cloud:
+      stream:
+        bindings:
+          {binding-name}:
+            content-type: application/json
+  ```
+* **No Versioning:**
+  - Events are immutable
+  - Breaking changes = new event type (e.g., OrderCreatedV2)
+  - Backward compatible changes allowed in payload
+* **Alternatives Considered:** 
+  - Avro with Schema Registry (rejected: overkill for project size)
+  - Protobuf (rejected: added complexity, less readable)
