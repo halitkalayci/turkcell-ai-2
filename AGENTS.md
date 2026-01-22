@@ -136,3 +136,39 @@ Each service MUST follow `Hexagonal Architecture` principles.
 - Use a single ID strategy across all services. (UUID)
 
 - Never mix UUID and Long unless explicitly required by contract.
+
+## 5) GATEWAY RULES
+
+### 5.1 Gateway Responsibilities
+
+The API Gateway is the **single entry point** for all client requests.
+
+Gateway MUST:
+- Route requests to appropriate downstream services
+- Inject correlation IDs (X-Correlation-Id) for traceability
+- Log all requests/responses with timestamps
+- Monitor downstream service health
+- Transform connection errors to RFC 7807 Problem Details
+
+Gateway MUST NOT:
+- Contain business logic
+- Modify request/response payloads (except headers)
+- Make business decisions
+- Store state (stateless routing only)
+
+### 5.2 Adding New Services
+
+When adding a new service, you MUST:
+1. Follow `/api/v1` versioning (ADR-002)
+2. Add gateway route configuration
+3. Add health check integration
+4. Update documentation
+
+See `docs/gateway-integration-guidelines.md` for complete checklist.
+
+### 5.3 Port Assignment
+
+- Gateway: `8080` (client entry point)
+- Services: `8081+` (incremental, never reuse)
+
+Gateway is the ONLY service clients access directly.
