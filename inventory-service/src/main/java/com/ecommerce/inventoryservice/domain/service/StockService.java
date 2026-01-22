@@ -1,5 +1,6 @@
 package com.ecommerce.inventoryservice.domain.service;
 
+import com.ecommerce.inventoryservice.application.dto.ProductQuantity;
 import com.ecommerce.inventoryservice.domain.exception.InsufficientStockException;
 import com.ecommerce.inventoryservice.domain.exception.ProductNotFoundException;
 import com.ecommerce.inventoryservice.domain.model.InventoryItem;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -33,6 +35,8 @@ public class StockService {
      */
     public void validateStockReservation(List<ReservationItem> items, 
                                          Map<UUID, InventoryItem> inventory) {
+        List<ProductQuantity> insufficientItems = new ArrayList<>();
+        
         for (ReservationItem item : items) {
             InventoryItem inventoryItem = inventory.get(item.getProductId());
             
@@ -41,14 +45,19 @@ public class StockService {
             }
             
             if (!inventoryItem.isAvailable(item.getQuantity())) {
-                throw new InsufficientStockException(
-                    String.format("Insufficient stock for product %s: requested=%d, available=%d",
-                        item.getProductId(), 
-                        item.getQuantity(),
-                        inventoryItem.getAvailableQuantity()),
-                    null
-                );
+                insufficientItems.add(new ProductQuantity(
+                    item.getProductId(),
+                    item.getQuantity(),
+                    inventoryItem.getAvailableQuantity()
+                ));
             }
+        }
+        
+        if (!insufficientItems.isEmpty()) {
+            throw new InsufficientStockException(
+                "Cannot reserve requested quantities due to insufficient stock",
+                insufficientItems
+            );
         }
     }
 

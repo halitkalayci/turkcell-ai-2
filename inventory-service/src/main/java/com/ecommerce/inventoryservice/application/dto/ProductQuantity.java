@@ -3,10 +3,17 @@ package com.ecommerce.inventoryservice.application.dto;
 import java.util.UUID;
 
 /**
- * Input DTO for availability check requests.
- * Represents a product and the requested quantity.
+ * Input/Output DTO for product quantity operations.
+ * Can represent requested quantity or include available quantity for error reporting.
  */
-public record ProductQuantity(UUID productId, int quantity) {
+public record ProductQuantity(UUID productId, int requestedQuantity, int availableQuantity) {
+    
+    /**
+     * Constructor for requests (available is unknown).
+     */
+    public ProductQuantity(UUID productId, int requestedQuantity) {
+        this(productId, requestedQuantity, 0);
+    }
     
     /**
      * Compact constructor with validation.
@@ -15,8 +22,16 @@ public record ProductQuantity(UUID productId, int quantity) {
         if (productId == null) {
             throw new IllegalArgumentException("Product ID cannot be null");
         }
-        if (quantity <= 0) {
-            throw new IllegalArgumentException("Quantity must be positive, got: " + quantity);
+        if (requestedQuantity <= 0) {
+            throw new IllegalArgumentException("Requested quantity must be positive, got: " + requestedQuantity);
         }
     }
+    
+    /**
+     * Convenience getter for quantity (backwards compatibility).
+     */
+    public int quantity() {
+        return requestedQuantity;
+    }
 }
+
